@@ -46,4 +46,4 @@ jobs:
                   ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.APP_NAME }}:latest
                   ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.APP_NAME }}:main
                 cache-from: type=local,src=/tmp/.buildx-cache
-                cache-to: type=local,dest=/tmp/.buildx-cache1
+                cache-to: type=local,dest=/tmp/.buildx-cache
