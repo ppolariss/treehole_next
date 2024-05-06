@@ -26,7 +26,6 @@ const (
 // save admin edit log for audit purpose
 func CreateAdminLog(tx *gorm.DB, logType AdminLogType, userID int, data any) {
 	log := AdminLog{
-
 		Type:   logType,
 		UserID: userID,
 		Data:   data,
