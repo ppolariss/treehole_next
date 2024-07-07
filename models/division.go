@@ -50,19 +50,16 @@ func (divisions Divisions) Preprocess(c *fiber.Ctx) error {
 
 func (division *Division) Preprocess(c *fiber.Ctx) error {
 	var pinned = division.Pinned
+	division.Holes = make(Holes, 0, 10)
 	if len(pinned) == 0 {
-		division.Holes = Holes{}
 		return nil
 	}
-	var holes Holes
-	DB.Find(&holes, pinned)
-	holes = utils.OrderInGivenOrder(holes, pinned)
-	err := holes.Preprocess(c)
-	if err != nil {
-		return err
+	DB.Find(&division.Holes, pinned)
+	if len(division.Holes) == 0 {
+		return nil
 	}
-	division.Holes = holes
-	return nil
+	division.Holes = utils.OrderInGivenOrder(division.Holes, pinned)
+	return division.Holes.Preprocess(c)
 }
 
 func (division *Division) AfterFind(_ *gorm.DB) (err error) {

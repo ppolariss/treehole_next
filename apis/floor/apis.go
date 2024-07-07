@@ -113,7 +113,7 @@ func ListFloorsOld(c *fiber.Ctx) error {
 // @Param id path int true "id"
 // @Success 200 {object} Floor
 // @Failure 404 {object} MessageModel
-func GetFloor(c *fiber.Ctx) error {
+func GetFloor(c *fiber.Ctx) (err error) {
 	// validate floor id
 	floorID, err := c.ParamsInt("id")
 	if err != nil {
@@ -126,10 +126,22 @@ func GetFloor(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	result := querySet.
-		First(&floor, floorID)
-	if result.Error != nil {
-		return result.Error
+	err = querySet.First(&floor, floorID).Error
+	if err != nil {
+		return err
+	}
+
+	user, err := GetUser(c)
+	if err != nil {
+		return err
+	}
+	if !user.IsAdmin {
+		// get hole
+		var hole Hole
+		err = DB.Where("hidden = false").First(&hole, floor.HoleID).Error
+		if err != nil {
+			return err
+		}
 	}
 
 	return Serialize(c, &floor)
@@ -174,9 +186,7 @@ func CreateFloor(c *fiber.Ctx) error {
 	// get user from auth
 	user, err := GetUser(c)
 	if err != nil {
-		if err != nil {
-			return err
-		}
+		return err
 	}
 
 	// permission
@@ -921,13 +931,16 @@ func ListSensitiveFloors(c *fiber.Ctx) (err error) {
 		}
 	}
 
-	result := querySet.
-		Where("updated_at < ?", query.Offset.Time).
-		Order("updated_at desc").
+	if query.OrderBy == "time_updated" {
+		querySet = querySet.Where("updated_at < ?", query.Offset.Time).Order("updated_at desc")
+	} else {
+		querySet = querySet.Where("created_at < ?", query.Offset.Time).Order("created_at desc")
+	}
+	err = querySet.
 		Limit(query.Size).
-		Find(&floors)
-	if result.Error != nil {
-		return result.Error
+		Find(&floors).Error
+	if err != nil {
+		return err
 	}
 
 	var responses = make([]SensitiveFloorResponse, len(floors))
@@ -983,7 +996,13 @@ func ModifyFloorSensitive(c *fiber.Ctx) (err error) {
 		// modify actual_sensitive
 		floor.IsActualSensitive = &body.IsActualSensitive
 		MyLog("Floor", "Modify", floorID, user.ID, RoleAdmin, "actual_sensitive to: ", fmt.Sprintf("%v", body.IsActualSensitive))
-		CreateAdminLog(tx, AdminLogTypeChangeSensitive, user.ID, body)
+		CreateAdminLog(tx, AdminLogTypeChangeSensitive, user.ID, struct {
+			FloorID int                         `json:"floor_id"`
+			Body    ModifySensitiveFloorRequest `json:"body"`
+		}{
+			FloorID: floorID,
+			Body:    body,
+		})
 
 		if !body.IsActualSensitive {
 			// save actual_sensitive only
@@ -1021,10 +1040,10 @@ func ModifyFloorSensitive(c *fiber.Ctx) (err error) {
 
 		MyLog("Floor", "Delete", floorID, user.ID, RoleAdmin, "reason: ", "sensitive")
 
-		err = floor.SendModify(DB)
-		if err != nil {
-			log.Err(err).Str("model", "Notification").Msg("SendModify failed")
-		}
+		// err = floor.SendModify(DB)
+		// if err != nil {
+		// 	log.Err(err).Str("model", "Notification").Msg("SendModify failed")
+		// }
 	}
 
 	return Serialize(c, &floor)
