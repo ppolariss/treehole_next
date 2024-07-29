@@ -96,7 +96,7 @@ type UserConfig struct {
 
 var defaultUserConfig = UserConfig{
 	Notify:     []string{"mention", "favorite", "report"},
-	ShowFolded: "fold",
+	ShowFolded: "hide",
 }
 
 func (user *User) GetID() int {
